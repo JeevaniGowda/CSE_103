@@ -23,7 +23,7 @@ const StudentAttendance = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        setAttendanceData(data);
+        setAttendanceData(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error("Error fetching attendance:", err);
@@ -65,34 +65,47 @@ const StudentAttendance = () => {
                 body: JSON.stringify({ qrData: decodedText })
               });
 
-              const result = await response.json();
+                const result = await response.json();
 
-              if (response.ok) {
-                setScanResult(result.class);
-                toast({
-                  title: "Attendance Marked!",
-                  description: `Successfully marked present for ${result.class}`,
-                });
-                fetchAttendance(); // Refresh list
-              } else {
-                toast({
-                  title: "Failed to mark attendance",
-                  description: result.error || "Please try again",
+                if (response.ok) {
+                  // STOP THE SCANNER FIRST before changing UI state
+                  if (html5Qrcode) {
+                    await html5Qrcode.stop().catch(err => console.error("Error stopping scanner:", err));
+                    scannerRef.current = null;
+                  }
+                  
+                  setScanResult(result.class || "Present");
+                  toast({
+                    title: "Attendance Marked!",
+                    description: `Successfully marked present for ${result.class || 'class'}`,
+                  });
+                  fetchAttendance(); // Refresh list
+                } else {
+                  toast({
+                    title: "Failed to mark attendance",
+                    description: result.error || "Please try again",
+                    variant: "destructive"
+                  });
+                  // If failed, we might want to stop anyway or let them try again
+                  if (html5Qrcode) {
+                    await html5Qrcode.stop().catch(() => {});
+                  }
+                  setScannerOpen(false);
+                }
+              } catch (err) {
+                 toast({
+                  title: "Scan Error",
+                  description: "Could not connect to the server",
                   variant: "destructive"
                 });
+                if (html5Qrcode) {
+                  await html5Qrcode.stop().catch(() => {});
+                }
+                setScannerOpen(false);
               }
-            } catch (err) {
-               toast({
-                title: "Scan Error",
-                description: "Could not connect to the server",
-                variant: "destructive"
-              });
-            }
-            html5Qrcode?.stop().catch(() => {});
-            setScannerOpen(false);
-          },
-          () => {}
-        );
+            },
+            () => {}
+          );
       } catch (err) {
         toast({
           title: "Camera Error",
@@ -106,16 +119,23 @@ const StudentAttendance = () => {
     initScanner();
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+      // Use a local variable to capture current ref for cleanup
+      const currentScanner = scannerRef.current;
+      if (currentScanner) {
+        currentScanner.stop().catch(() => {});
         scannerRef.current = null;
       }
     };
   }, [scannerOpen, toast, token]);
 
-  const closeScanner = () => {
+  const closeScanner = async () => {
+    // If the scanner is still running, stop it
     if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
+      try {
+        await scannerRef.current.stop();
+      } catch (err) {
+        console.warn("Scanner already stopped or failed to stop:", err);
+      }
       scannerRef.current = null;
     }
     setScannerOpen(false);
@@ -133,18 +153,18 @@ const StudentAttendance = () => {
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-card border border-border rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-foreground">{attendanceData.length}</div>
+          <div className="text-2xl font-bold text-foreground">{(attendanceData || []).length}</div>
           <div className="text-xs text-muted-foreground">Total Days</div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-success">
-            {attendanceData.filter(a => a.status === 'present').length}
+            {(attendanceData || []).filter(a => a?.status === 'present').length}
           </div>
           <div className="text-xs text-muted-foreground">Present</div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-destructive">
-            {attendanceData.filter(a => a.status === 'absent').length}
+            {(attendanceData || []).filter(a => a?.status === 'absent').length}
           </div>
           <div className="text-xs text-muted-foreground">Absent</div>
         </div>

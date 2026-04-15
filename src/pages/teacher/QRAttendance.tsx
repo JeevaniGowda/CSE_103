@@ -101,7 +101,7 @@ const QRAttendance = () => {
             ) : recentScans.map((s, i) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/50 border border-transparent hover:border-primary/20 transition-all animate-in slide-in-from-right-2">
                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary border border-primary/20">
-                  {s.name.charAt(0)}
+                  {s.name ? s.name.charAt(0) : '?'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground truncate">{s.name}</div>

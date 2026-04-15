@@ -1,20 +1,20 @@
-import { useNavigate } from "react-router-dom";
 import { LucideIcon, ChevronRight } from "lucide-react";
+import { useNav } from "@/contexts/NavContext";
 
 interface DashboardCardProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  to: string;
+  to: string; // "to" now serves as the "id" for handleNav
   primary?: boolean;
 }
 
 const DashboardCard = ({ title, description, icon: Icon, to, primary }: DashboardCardProps) => {
-  const navigate = useNavigate();
+  const { handleNav } = useNav();
 
   return (
     <button
-      onClick={() => navigate(to)}
+      onClick={() => handleNav(to)}
       className={`nav-card w-full text-left flex items-center gap-4 ${primary ? "nav-card-primary" : ""}`}
     >
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${

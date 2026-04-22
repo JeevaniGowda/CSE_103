@@ -5,45 +5,47 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNav } from '@/contexts/NavContext';
 
 const STUDENT_COMMANDS: Record<string, string> = {
-  'dashboard': '/student',
-  'attendance': '/student/attendance',
-  'assignments': '/student/assignments',
-  'exams': '/student/exam',
-  'proctored exam': '/student/exam',
-  'fees': '/student/fees',
-  'payment': '/student/fees',
-  'ai assistant': '/student/chat',
-  'chatbot': '/student/chat',
-  'timetable': '/student/timetable',
-  'consultation': '/student/consultation',
+  'dashboard': 'dashboard',
+  'attendance': 'attendance',
+  'assignments': 'assignments',
+  'exams': 'exam',
+  'proctored exam': 'exam',
+  'fees': 'fees',
+  'payment': 'fees',
+  'ai assistant': 'chat',
+  'chatbot': 'chat',
+  'timetable': 'timetable',
+  'consultation': 'consultation',
 };
 
 const TEACHER_COMMANDS: Record<string, string> = {
-  'dashboard': '/teacher',
-  'assignments': '/teacher/assignments',
-  'qr attendance': '/teacher/qr-attendance',
-  'attendance': '/teacher/qr-attendance',
-  'timetable': '/teacher/timetable',
-  'exams': '/teacher/exams',
-  'manage exams': '/teacher/exams',
-  'consultations': '/teacher/consultations',
-  'requests': '/teacher/consultations',
+  'dashboard': 'dashboard',
+  'assignments': 'assignments',
+  'qr attendance': 'qr-attendance',
+  'attendance': 'qr-attendance',
+  'timetable': 'timetable',
+  'exams': 'exams',
+  'manage exams': 'exams',
+  'consultations': 'consultations',
+  'requests': 'consultations',
 };
 
 const ADMIN_COMMANDS: Record<string, string> = {
-  'dashboard': '/admin',
-  'students': '/admin/students',
-  'teachers': '/admin/teachers',
-  'fees': '/admin/fees',
-  'alerts': '/admin/notifications',
-  'notifications': '/admin/notifications',
-  'exams': '/admin/exams',
+  'dashboard': 'dashboard',
+  'students': 'students',
+  'teachers': 'teachers',
+  'fees': 'fees',
+  'alerts': 'notifications',
+  'notifications': 'notifications',
+  'exams': 'exams',
 };
 
 export const VoiceAssistant = () => {
   const { role, logout } = useAuth();
+  const { handleNav } = useNav();
   const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [lastCommand, setLastCommand] = useState("");
@@ -53,7 +55,7 @@ export const VoiceAssistant = () => {
   const { toast } = useToast();
 
   const getRoleCommands = () => {
-    const base = { 'logout': '/login' };
+    const base = { 'logout': 'logout' };
     if (role === 'student') return { ...base, ...STUDENT_COMMANDS };
     if (role === 'teacher') return { ...base, ...TEACHER_COMMANDS };
     if (role === 'admin') return { ...base, ...ADMIN_COMMANDS };
@@ -70,7 +72,7 @@ export const VoiceAssistant = () => {
   useEffect(() => {
     // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (SpeechRecognition) {
       setIsSupported(true);
       recognitionRef.current = new SpeechRecognition();
@@ -81,14 +83,14 @@ export const VoiceAssistant = () => {
       recognitionRef.current.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript.toLowerCase().trim();
         setLastCommand(transcript);
-        
+
         const currentCommands = getRoleCommands();
         let found = false;
 
-        for (const [cmd, path] of Object.entries(currentCommands)) {
+        for (const [cmd, targetId] of Object.entries(currentCommands)) {
           if (transcript.includes(cmd)) {
             const displayCmd = cmd.charAt(0).toUpperCase() + cmd.slice(1);
-            
+
             if (cmd === 'logout') {
               setFeedback("Logging out...");
               speak("Logging out. Goodbye!");
@@ -100,13 +102,16 @@ export const VoiceAssistant = () => {
               setFeedback(`Opening ${displayCmd}...`);
               speak(`Opening ${displayCmd}`);
               toast({ title: "Command Recognized", description: `Opening ${displayCmd}` });
+
               setTimeout(() => {
-                navigate(path);
+                // IMPORTANT: In DashboardLayout, navigation is handled via the handleNav hook
+                // instead of URL paths. This switches the internal ActivePage component.
+                handleNav(targetId);
                 setIsListening(false);
                 setFeedback("");
               }, 1000);
             }
-            
+
             found = true;
             break;
           }
@@ -133,7 +138,7 @@ export const VoiceAssistant = () => {
         setIsListening(false);
       };
     }
-  }, [navigate, role]);
+  }, [navigate, role, handleNav, logout]);
 
   const toggleListen = () => {
     if (isListening) {
@@ -166,19 +171,19 @@ export const VoiceAssistant = () => {
           )}
         </div>
       )}
-      
+
       <div className="relative">
         {isListening && (
           <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
         )}
-        <Button 
-          variant="outline" 
-          size="icon" 
+        <Button
+          variant="outline"
+          size="icon"
           onClick={toggleListen}
           className={cn(
             "rounded-full w-10 h-10 shadow-md transition-all duration-300 relative z-10 border-slate-200",
-            isListening 
-              ? "bg-primary text-primary-foreground scale-110 border-primary" 
+            isListening
+              ? "bg-primary text-primary-foreground scale-110 border-primary"
               : "bg-white text-slate-600 hover:bg-slate-50 hover:text-primary hover:border-primary/50"
           )}
           title={isListening ? "Stop Listening" : "Start Voice Navigation"}

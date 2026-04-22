@@ -25,8 +25,8 @@ const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GE
 
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: (process.env.RAZORPAY_KEY_ID || '').replace(/"/g, '').trim(),
+  key_secret: (process.env.RAZORPAY_KEY_SECRET || '').replace(/"/g, '').trim(),
 });
 
 const app = express();
@@ -255,50 +255,96 @@ app.post('/api/register', async (req, res) => {
 app.get('/api/fees/status', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    res.json({ tuitionFee: user.tuitionFee, libraryFee: user.libraryFee, labFee: user.labFee, feesPaid: user.feesPaid, paymentHistory: user.paymentHistory });
+    res.json({ 
+      tuitionFee: user.tuitionFee, 
+      libraryFee: user.libraryFee, 
+      labFee: user.labFee, 
+      paidAmount: user.paidAmount || 0,
+      feesPaid: user.feesPaid, 
+      paymentHistory: user.paymentHistory 
+    });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
 app.post('/api/fees/create-order', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    const amount = (req.body.amount ? req.body.amount : (user.tuitionFee + user.libraryFee + user.labFee)) * 100;
+    const amount = Math.round((req.body.amount ? Number(req.body.amount) : (user.tuitionFee + user.libraryFee + user.labFee)) * 100);
+    
     try {
-      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) throw new Error("No keys");
-      const order = await razorpay.orders.create({ amount, currency: "INR", receipt: `receipt_${user._id}_${Date.now()}` });
-      res.json(order);
+      const keyId = process.env.RAZORPAY_KEY_ID?.replace(/"/g, '');
+      const keySecret = process.env.RAZORPAY_KEY_SECRET?.replace(/"/g, '');
+      if (!keyId || !keySecret) {
+        throw new Error("Razorpay keys missing in .env");
+      }
+      
+      const shortReceipt = `rcpt_${Math.random().toString(36).substring(2, 10)}`;
+      const order = await razorpay.orders.create({ 
+        amount, 
+        currency: "INR", 
+        receipt: shortReceipt 
+      });
+      
+      res.json({
+        ...order,
+        key_id: process.env.RAZORPAY_KEY_ID,
+        user_email: user.email,
+        user_name: user.name
+      });
     } catch (e) {
-      res.json({ id: "order_mock_" + Math.random().toString(36).substring(7), amount, currency: "INR", mock: true });
+      console.error('Razorpay Order Creation Error:', e);
+      res.status(500).json({ error: e.message || 'Razorpay order creation failed' });
     }
-  } catch (err) { res.status(500).json({ error: 'Order failed' }); }
+  } catch (err) { 
+    console.error('Order route error:', err);
+    res.status(500).json({ error: 'Order failed' }); 
+  }
 });
 
 app.post('/api/fees/verify-payment', authMiddleware, async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  let isVerified = (!secret || razorpay_signature === 'dummy_signature');
-  if (!isVerified) {
-    const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-    isVerified = (hmac.digest('hex') === razorpay_signature);
-  }
-  if (isVerified) {
-    const user = await User.findById(req.user.id);
-    const amountPaid = req.body.amount || (user.tuitionFee + user.libraryFee + user.labFee - user.paidAmount);
-    user.paidAmount += amountPaid;
-    if (user.paidAmount >= (user.tuitionFee + user.libraryFee + user.labFee)) {
-      user.feesPaid = true;
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    
+    // Support dummy signature for mock/demo mode
+    let isVerified = (!secret || razorpay_signature === 'dummy_signature');
+    
+    if (!isVerified && secret && razorpay_signature) {
+      const hmac = crypto.createHmac('sha256', secret);
+      hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+      isVerified = (hmac.digest('hex') === razorpay_signature);
     }
-    user.paymentHistory.push({ 
-      amount: amountPaid, 
-      orderId: razorpay_order_id || 'mock', 
-      paymentId: razorpay_payment_id || 'mock', 
-      status: 'Success',
-      date: new Date()
-    });
-    await user.save();
-    res.json({ message: 'Success' });
-  } else res.status(400).json({ error: 'Failed' });
+
+    if (isVerified) {
+      const user = await User.findById(req.user.id);
+      const amountPaid = Number(req.body.amount || (user.tuitionFee + user.libraryFee + user.labFee - user.paidAmount));
+      
+      user.paidAmount = (user.paidAmount || 0) + amountPaid;
+      
+      const totalRequired = (user.tuitionFee || 0) + (user.libraryFee || 0) + (user.labFee || 0);
+      if (user.paidAmount >= totalRequired) {
+        user.feesPaid = true;
+      }
+      
+      user.paymentHistory.push({ 
+        amount: amountPaid, 
+        orderId: razorpay_order_id || 'mock', 
+        paymentId: razorpay_payment_id || 'mock', 
+        status: 'Success',
+        date: new Date()
+      });
+      
+      await user.save();
+      console.log(`Payment Verified: ${user.name} paid ₹${amountPaid}`);
+      res.json({ message: 'Success' });
+    } else {
+      console.error('Payment Verification Failed: Invalid Signature');
+      res.status(400).json({ error: 'Verification Failed' });
+    }
+  } catch (e) {
+    console.error('Verification Route Error:', e);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 app.post('/api/timetable/generate', adminMiddleware, async (req, res) => {

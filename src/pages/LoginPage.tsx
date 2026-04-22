@@ -46,7 +46,7 @@ const LoginPage = () => {
         setIsRegistering(false);
         setPassword("");
       } else {
-        login(data.token, data.user.role, data.user.name, data.user.id, data.user.className);
+        login(data.token, data.user.role, data.user.name, data.user.id, data.user.email, data.user.className);
         navigate(`/${data.user.role}`);
       }
     } catch (err: any) {

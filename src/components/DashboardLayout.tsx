@@ -44,114 +44,72 @@ import ManageExams from "@/pages/shared/ManageExams";
 type NavItem = { id: string; title: string; icon: React.ElementType; component: React.ComponentType };
 
 const studentNav: NavItem[] = [
-  { id: "dashboard",    title: "Dashboard",      icon: LayoutDashboard, component: StudentDashboard },
-  { id: "quiz",         title: "Daily Quiz",     icon: FileQuestion,    component: QuizPage },
-  { id: "attendance",   title: "Attendance",     icon: CalendarCheck,   component: StudentAttendance },
-  { id: "timetable",    title: "Timetable",      icon: Clock,           component: Timetable },
-  { id: "assignments",  title: "Assignments",    icon: FileText,        component: StudentAssignments },
-  { id: "chat",         title: "AI ChatBot",     icon: MessageSquare,   component: AIChatBot },
-  { id: "exam",         title: "Proctored Exam", icon: MonitorPlay,     component: ProctoredExam },
-  { id: "fees",         title: "Fee Payment",    icon: CreditCard,      component: FeePayment },
-  { id: "consultation", title: "Consultation",   icon: MessageSquare,   component: ConsultationBooking },
+  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, component: StudentDashboard },
+  { id: "quiz", title: "Daily Quiz", icon: FileQuestion, component: QuizPage },
+  { id: "attendance", title: "Attendance", icon: CalendarCheck, component: StudentAttendance },
+  { id: "timetable", title: "Timetable", icon: Clock, component: Timetable },
+  { id: "assignments", title: "Assignments", icon: FileText, component: StudentAssignments },
+  { id: "chat", title: "AI ChatBot", icon: MessageSquare, component: AIChatBot },
+  { id: "exam", title: "Proctored Exam", icon: MonitorPlay, component: ProctoredExam },
+  { id: "fees", title: "Fee Payment", icon: CreditCard, component: FeePayment },
+  { id: "consultation", title: "Consultation", icon: MessageSquare, component: ConsultationBooking },
 ];
 
 const teacherNav: NavItem[] = [
-  { id: "dashboard",     title: "Dashboard",          icon: LayoutDashboard, component: TeacherDashboard },
-  { id: "assignments",   title: "Assignments",        icon: FileText,        component: TeacherAssignments },
-  { id: "qr-attendance", title: "QR Attendance",      icon: QrCode,          component: QRAttendance },
-  { id: "timetable",     title: "Timetable",          icon: Clock,           component: Timetable },
-  { id: "exams",         title: "Manage Exams",       icon: MonitorPlay,     component: ManageExams },
-  { id: "consultations", title: "Consultation Reqs",  icon: MessageSquare,   component: ConsultationRequests },
+  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, component: TeacherDashboard },
+  { id: "assignments", title: "Assignments", icon: FileText, component: TeacherAssignments },
+  { id: "qr-attendance", title: "QR Attendance", icon: QrCode, component: QRAttendance },
+  { id: "timetable", title: "Timetable", icon: Clock, component: Timetable },
+  { id: "exams", title: "Manage Exams", icon: MonitorPlay, component: ManageExams },
+  { id: "consultations", title: "Consultation Reqs", icon: MessageSquare, component: ConsultationRequests },
 ];
 
 const adminNav: NavItem[] = [
-  { id: "dashboard",     title: "Dashboard",       icon: LayoutDashboard, component: AdminDashboard },
-  { id: "students",      title: "Manage Students", icon: GraduationCap,   component: ManageStudents },
-  { id: "teachers",      title: "Manage Teachers", icon: Users,           component: ManageTeachers },
-  { id: "timetable",     title: "Timetable",       icon: Clock,           component: Timetable },
-  { id: "fees",          title: "Manage Fees",     icon: CreditCard,      component: ManageFees },
-  { id: "notifications", title: "Broadcast Alerts",icon: BellRing,        component: CreateNotification },
-  { id: "exams",         title: "Manage Exams",    icon: MonitorPlay,     component: ManageExams },
+  { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, component: AdminDashboard },
+  { id: "students", title: "Manage Students", icon: GraduationCap, component: ManageStudents },
+  { id: "teachers", title: "Manage Teachers", icon: Users, component: ManageTeachers },
+  { id: "timetable", title: "Timetable", icon: Clock, component: Timetable },
+  { id: "fees", title: "Manage Fees", icon: CreditCard, component: ManageFees },
+  { id: "notifications", title: "Broadcast Alerts", icon: BellRing, component: CreateNotification },
+  { id: "exams", title: "Manage Exams", icon: MonitorPlay, component: ManageExams },
 ];
 
 // ── Right overview panel ──────────────────────────────────────────────────────
 function RightPanel({ role }: { role: string }) {
+  if (role !== "student") return null;
+
   return (
     <aside className="hidden lg:flex w-72 flex-col border-l border-border bg-card p-5 gap-5 animate-fade-in flex-shrink-0">
-      <div className="flex items-center gap-2 mb-1">
-        <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Overview</h2>
+      <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="p-2 bg-primary/10 rounded-xl"><CalendarCheck className="w-4 h-4 text-primary" /></div>
+          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+2% this week</span>
+        </div>
+        <div>
+          <p className="text-2xl font-black text-foreground">85%</p>
+          <p className="text-[11px] font-bold text-muted-foreground uppercase">Average Attendance</p>
+        </div>
+        <div className="w-full bg-primary/10 h-1.5 rounded-full overflow-hidden">
+          <div className="bg-primary h-full w-[85%]" />
+        </div>
       </div>
-
-      {role === "student" && (
-        <>
-          <div className="p-5 rounded-3xl bg-primary/5 border border-primary/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="p-2 bg-primary/10 rounded-xl"><CalendarCheck className="w-4 h-4 text-primary" /></div>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+2% this week</span>
-            </div>
-            <div>
-              <p className="text-2xl font-black text-foreground">85%</p>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase">Average Attendance</p>
-            </div>
-            <div className="w-full bg-primary/10 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-primary h-full w-[85%]" />
-            </div>
-          </div>
-          <div className="p-5 rounded-3xl bg-amber-500/5 border border-amber-500/10 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 rounded-xl"><Clock className="w-4 h-4 text-amber-500" /></div>
-              <p className="text-[11px] font-bold text-amber-500 uppercase">Up Next</p>
-            </div>
-            <div>
-              <p className="text-lg font-bold text-foreground">DBMS (Lab 1)</p>
-              <p className="text-[11px] text-muted-foreground font-medium">12:00 PM - 01:00 PM</p>
-            </div>
-          </div>
-          <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-3 shadow-xl shadow-slate-900/10">
-            <div className="flex items-center gap-3">
-              <Bell className="w-4 h-4 text-primary" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">New Alert</p>
-            </div>
-            <p className="text-sm font-medium leading-relaxed">Semester registration starts this Monday. Check fee portal.</p>
-          </div>
-        </>
-      )}
-
-      {role === "teacher" && (
-        <div className="p-5 rounded-3xl bg-indigo-500/5 border border-indigo-500/10 space-y-4">
-          <div className="flex items-center gap-3 text-indigo-500">
-            <Users className="w-4 h-4" />
-            <p className="text-[11px] font-bold uppercase">Class Progress</p>
-          </div>
-          {[["Year 1 - CS", "92%", 92], ["Year 2 - IT", "78%", 78]].map(([cls, pct, w]) => (
-            <div key={cls as string}>
-              <div className="flex justify-between text-[11px] font-bold mb-1">
-                <span>{cls}</span><span>{pct}</span>
-              </div>
-              <div className="bg-indigo-500/10 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-indigo-500 h-full" style={{ width: `${w}%` }} />
-              </div>
-            </div>
-          ))}
+      <div className="p-5 rounded-3xl bg-amber-500/5 border border-amber-500/10 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-amber-500/10 rounded-xl"><Clock className="w-4 h-4 text-amber-500" /></div>
+          <p className="text-[11px] font-bold text-amber-500 uppercase">Up Next</p>
         </div>
-      )}
-
-      {role === "admin" && (
-        <div className="p-5 rounded-3xl bg-slate-100 border border-slate-200 space-y-4">
-          <div className="flex items-center gap-3">
-            <MonitorPlay className="w-4 h-4 text-slate-500" />
-            <p className="text-[11px] font-black uppercase text-slate-500">System Load</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[["1.2k", "Students"], ["45", "Teachers"]].map(([val, lbl]) => (
-              <div key={lbl} className="p-3 bg-white rounded-2xl border border-slate-100">
-                <p className="text-xl font-bold">{val}</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">{lbl}</p>
-              </div>
-            ))}
-          </div>
+        <div>
+          <p className="text-lg font-bold text-foreground">DBMS (Lab 1)</p>
+          <p className="text-[11px] text-muted-foreground font-medium">12:00 PM - 01:00 PM</p>
         </div>
-      )}
+      </div>
+      <div className="p-5 rounded-3xl bg-slate-900 text-white space-y-3 shadow-xl shadow-slate-900/10">
+        <div className="flex items-center gap-3">
+          <Bell className="w-4 h-4 text-primary" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">New Alert</p>
+        </div>
+        <p className="text-sm font-medium leading-relaxed">Semester registration starts this Monday. Check fee portal.</p>
+      </div>
     </aside>
   );
 }

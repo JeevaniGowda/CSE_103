@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Send, Bot, User, Sparkles, Square, Copy, Check, RotateCcw, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +8,8 @@ import { Input } from "@/components/ui/input";
 // ── PUT YOUR GEMINI API KEY HERE ───────────────────────────────────────────────
 // Get a free key at: https://aistudio.google.com/app/apikey
 // This key auto-refreshes from localStorage if the user updates it in the UI
-const HARDCODED_KEY = "";
+const ENV_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || "";
+const HARDCODED_KEY = ENV_KEY;
 
 function getSavedKey(): string {
   try { return localStorage.getItem("sc_gemini_key") || HARDCODED_KEY; } catch { return HARDCODED_KEY; }
@@ -91,38 +93,48 @@ function TypingDots() {
   );
 }
 
-// ── Gemini API call ────────────────────────────────────────────────────────────
+// ── Gemini API call using SDK ──────────────────────────────────────────────────
 const SYSTEM_CONTEXT = "You are SmartCampus AI, a brilliant academic assistant for university students. Answer any question on any topic — coding, maths, physics, history, literature, science, etc. Use clear formatting and code blocks. Be concise but thorough.";
 
 async function callGemini(apiKey: string, history: GeminiMessage[]): Promise<string> {
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
+  try {
+    if (!apiKey) throw new Error("API_KEY_MISSING");
+    
+    const genAI = new GoogleGenerativeAI(apiKey);
+    let model;
+    try {
+      model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash-latest",
+        systemInstruction: SYSTEM_CONTEXT 
+      });
+    } catch {
+      model = genAI.getGenerativeModel({ 
+        model: "gemini-pro",
+        systemInstruction: SYSTEM_CONTEXT 
+      });
+    }
 
-  // Prepend system context as first user+model exchange so it works across all API versions
-  const fullHistory: GeminiMessage[] = [
-    { role: "user", parts: [{ text: SYSTEM_CONTEXT }] },
-    { role: "model", parts: [{ text: "Understood! I'm SmartCampus AI. How can I help you today?" }] },
-    ...history,
-  ];
+    // Convert our internal history to the SDK chat format
+    // Note: Our history already includes user messages. The SDK 'chat' history
+    // expects a list of prior exchanges.
+    const chat = model.startChat({
+      history: history.slice(0, -1).map(msg => ({
+        role: msg.role === "model" ? "model" : "user",
+        parts: [{ text: msg.parts[0].text }],
+      })),
+    });
 
-  const body = {
-    contents: fullHistory,
-    generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-  };
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const status = res.status;
-    if (status === 401 || status === 403) throw new Error("KEY_EXPIRED");
-    if (status === 400) throw new Error(err?.error?.message || "Bad request");
-    throw new Error(err?.error?.message || `API error ${status}`);
+    const latestUserMessage = history[history.length - 1].parts[0].text;
+    const result = await chat.sendMessage(latestUserMessage);
+    const response = await result.response;
+    return response.text();
+  } catch (err: any) {
+    console.error("Gemini SDK Error:", err);
+    if (err.message?.includes("401") || err.message?.includes("403") || err.message?.includes("key")) {
+      throw new Error("KEY_EXPIRED");
+    }
+    throw new Error(err.message || "Failed to generate content");
   }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response received.";
 }
 
 // ── Expired key update banner ──────────────────────────────────────────────────
@@ -286,10 +298,10 @@ const AIChatBot = () => {
                   </div>
                 )}
                 <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-sm"
-                    : msg.error
-                      ? "bg-red-50 border border-red-200 text-red-700 rounded-tl-sm"
-                      : "bg-card border border-border text-foreground rounded-tl-sm"
+                  ? "bg-primary text-primary-foreground rounded-tr-sm"
+                  : msg.error
+                    ? "bg-red-50 border border-red-200 text-red-700 rounded-tl-sm"
+                    : "bg-card border border-border text-foreground rounded-tl-sm"
                   }`}>
                   {msg.typing ? <TypingDots /> : msg.role === "assistant"
                     ? <div>{renderContent(msg.content)}</div>

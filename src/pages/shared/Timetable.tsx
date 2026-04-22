@@ -22,9 +22,17 @@ const Timetable = () => {
     // Simulate small generation delay
     setTimeout(() => {
       if (role === "teacher") {
-        // Match current teacher by name
-        const mySchedule = getTeacherSchedule(userName || "Ravi");
-        setData(mySchedule);
+        // Construct a full 5-day table for the teacher
+        const teacherViewData = {
+          days: studentTimetable.days.map(dayObj => ({
+            day: dayObj.day,
+            periods: dayObj.periods.map(p => {
+              const isTeaching = p.teacher?.toLowerCase() === userName?.toLowerCase();
+              return isTeaching ? p : { time: p.time, subject: "FREE", teacher: null };
+            })
+          }))
+        };
+        setData(teacherViewData);
       } else {
         setData(studentTimetable);
       }
@@ -45,102 +53,103 @@ const Timetable = () => {
     <div className="page-container animate-fade-in pb-12">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Timetable</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
+            {role === "teacher" ? "Teaching Schedule 👨‍🏫" : "Class Timetable 📅"}
+          </h1>
           <p className="text-muted-foreground mt-1">
             {role === "teacher" 
               ? `Personalized teaching schedule for Prof. ${userName || "Lecturer"}` 
               : `Class: ${studentTimetable.className} - Semester Schedule`}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={generateTimetable} className="gap-2">
+        <Button variant="outline" size="sm" onClick={generateTimetable} className="gap-2 bg-white border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-bold">
           <RefreshCcw className="w-4 h-4" /> Regenerate
         </Button>
       </div>
 
-      {role === "teacher" ? (
-        // --- Teacher View ---
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data.length > 0 ? (
-            data.map((item: any, i: number) => (
-              <div key={i} className="bg-card border border-border p-6 rounded-2xl shadow-sm hover:shadow-md transition-all hover:border-primary/20">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 bg-primary/10 rounded-xl">
-                    <Clock className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{item.day}</p>
-                    <p className="text-xs text-muted-foreground">{item.time}</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground uppercase font-bold tracking-widest opacity-60">Subject</span>
-                    <span className="text-sm font-bold text-foreground bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/10">{item.subject}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground uppercase font-bold tracking-widest opacity-60">Handled for</span>
-                    <span className="text-sm text-foreground font-medium">{item.className}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-full p-12 bg-muted/20 border border-border border-dashed rounded-3xl text-center">
-              <p className="text-muted-foreground">No classes assigned for this teacher currently.</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        // --- Student View ---
-        <div className="bg-card border border-border rounded-3xl shadow-xl overflow-hidden backdrop-blur-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-primary/5">
-                  <th className="p-6 text-left font-bold text-foreground border-b border-border w-40">Day</th>
-                  {studentTimetable.days[0].periods.map((p, i) => (
-                    <th key={i} className="p-6 text-center font-bold text-foreground border-b border-border">
-                      <div className="flex flex-col items-center gap-1">
-                        <Clock className="w-4 h-4 text-primary opacity-60" />
-                        <span>{p.time}</span>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.days.map((dayObj: any, dayIdx: number) => (
-                  <tr key={dayIdx} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-6 font-bold text-foreground border-b border-border bg-muted/10">{dayObj.day}</td>
-                    {dayObj.periods.map((period: any, pIdx: number) => {
-                      const isFree = period.subject === "FREE";
-                      return (
-                        <td key={pIdx} className={`p-4 border-b border-border text-center`}>
-                          <div className={`p-4 rounded-2xl border transition-all ${
-                            isFree 
-                              ? 'bg-secondary/30 border-dashed border-muted-foreground/20' 
-                              : 'bg-primary/5 border-primary/10 border-solid hover:bg-primary/10'
-                          }`}>
-                            <p className={`text-sm font-black mb-1 ${isFree ? 'text-muted-foreground italic' : 'text-primary'}`}>
-                              {period.subject}
-                            </p>
-                            {!isFree && (
+      <div className="bg-card border border-border rounded-3xl shadow-xl overflow-hidden backdrop-blur-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="p-6 text-left font-bold text-slate-400 uppercase tracking-widest text-[10px] border-b border-border w-40">Day</th>
+                {studentTimetable.days[0].periods.map((p, i) => (
+                  <th key={i} className="p-6 text-center font-bold text-slate-400 uppercase tracking-widest text-[10px] border-b border-border">
+                    <div className="flex flex-col items-center gap-1">
+                      <Clock className="w-4 h-4 text-primary/60" />
+                      <span>{p.time}</span>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.days.map((dayObj: any, dayIdx: number) => (
+                <tr key={dayIdx} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-6 font-black text-slate-700 border-b border-border bg-slate-50/30">{dayObj.day}</td>
+                  {dayObj.periods.map((period: any, pIdx: number) => {
+                    const isFree = period.subject === "FREE";
+                    
+                    return (
+                      <td key={pIdx} className={`p-4 border-b border-border text-center`}>
+                        <div className={`p-4 rounded-3xl border transition-all h-full min-h-[100px] flex flex-col justify-center gap-1 ${
+                          isFree 
+                            ? 'bg-emerald-50/40 border-dashed border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300' 
+                            : 'bg-primary/5 border-primary/10 border-solid hover:bg-primary/10 hover:border-primary/25 shadow-sm'
+                        }`}>
+                          <p className={`text-sm font-black ${isFree ? 'text-emerald-700' : 'text-primary'}`}>
+                            {isFree ? (role === "teacher" ? "CONSULTATION" : "FREE HOUR") : period.subject}
+                          </p>
+                          
+                          {role === "teacher" ? (
+                            isFree ? (
+                              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter mt-1 opacity-70">
+                                Open for Doubts
+                              </p>
+                            ) : (
+                              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">
+                                {studentTimetable.className}
+                              </p>
+                            )
+                          ) : (
+                            !isFree && (
                               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tight">
                                 {period.teacher}
                               </p>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                            )
+                          )}
+                          
+                          {role === "teacher" && isFree && (
+                            <Button 
+                              variant="link" 
+                              size="sm" 
+                              className="p-0 h-auto text-[10px] font-black uppercase text-emerald-800 hover:text-emerald-900 mt-2 tracking-widest"
+                              onClick={() => window.dispatchEvent(new CustomEvent('nav-change', { detail: 'consultations' }))}
+                            >
+                              View Reqs →
+                            </Button>
+                          )}
+                          
+                          {role === "student" && isFree && (
+                            <Button 
+                              variant="link" 
+                              size="sm" 
+                              className="p-0 h-auto text-[10px] font-black uppercase text-emerald-800 hover:text-emerald-900 mt-2 tracking-widest"
+                              onClick={() => window.dispatchEvent(new CustomEvent('nav-change', { detail: 'consultation' }))}
+                            >
+                              Book Now →
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
-      
+      </div>
     </div>
   );
 };

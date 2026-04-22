@@ -65,7 +65,7 @@ export const getTeacherSchedule = (teacherName: string) => {
   const schedule: any[] = [];
   studentTimetable.days.forEach(dayObj => {
     dayObj.periods.forEach(period => {
-      if (period.teacher === teacherName) {
+      if (period.teacher?.toLowerCase() === teacherName?.toLowerCase()) {
         schedule.push({
           day: dayObj.day,
           dayKey: dayObj.dayKey,
@@ -87,7 +87,7 @@ export const getTeacherFreeSlots = (teacherName: string) => {
 
   studentTimetable.days.forEach(dayObj => {
     allTimes.forEach(time => {
-      const isTeaching = dayObj.periods.some(p => p.time === time && p.teacher === teacherName);
+      const isTeaching = dayObj.periods.some(p => p.time === time && p.teacher?.toLowerCase() === teacherName?.toLowerCase());
       if (!isTeaching) {
         freeSlots.push({
           day: dayObj.day,

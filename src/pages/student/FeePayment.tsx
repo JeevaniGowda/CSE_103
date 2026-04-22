@@ -16,7 +16,7 @@ const TOTAL_EXPECTED_FEE = 52500; // Updated to match previous UI total (45000+2
 
 const FeePayment = () => {
   const { toast } = useToast();
-  const { userName, token } = useAuth();
+  const { userName, userEmail, token } = useAuth();
   const [feeData, setFeeData] = useState<FeeData>({
     totalFee: TOTAL_EXPECTED_FEE,
     paidAmount: 0,
@@ -36,7 +36,7 @@ const FeePayment = () => {
       if (response.ok) {
         setFeeData({
           totalFee: data.tuitionFee + data.libraryFee + data.labFee,
-          paidAmount: data.feesPaid ? (data.tuitionFee + data.libraryFee + data.labFee) : 0,
+          paidAmount: data.paidAmount || 0,
           paymentHistory: data.paymentHistory || []
         });
       }
@@ -53,6 +53,11 @@ const FeePayment = () => {
     const amount = parseInt(payAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({ title: "Invalid Amount", description: "Please enter a valid amount to pay.", variant: "destructive" });
+      return;
+    }
+
+    if (amount < 100) {
+      toast({ title: "Minimum Amount", description: "Please enter an amount of at least ₹100 for Razorpay processing.", variant: "destructive" });
       return;
     }
 
@@ -74,20 +79,21 @@ const FeePayment = () => {
         },
         body: JSON.stringify({ amount })
       });
-      
+
       const order = await res.json();
       if (!res.ok) throw new Error(order.error || "Failed to create order");
 
-      // 2. Options for Razorpay
+      // ── REGULAR RAZORPAY FLOW ──
       const options = {
-        key: "rzp_test_SbTdn6R53UiK1S", // Test Key ID
+        key: order.key_id, 
         amount: order.amount,
         currency: order.currency,
         name: "SmartCampus Portal",
         description: "Student Fee Payment",
         order_id: order.id,
         handler: async (response: any) => {
-          // 3. Verify payment on backend
+          console.log("Razorpay Success Response:", response);
+          setLoading(true); // Keep loading while verifying
           try {
             const verifyRes = await fetch('http://localhost:5000/api/fees/verify-payment', {
               method: 'POST',
@@ -98,37 +104,63 @@ const FeePayment = () => {
               body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
+                razorpay_signature: response.razorpay_signature,
+                amount: amount
               })
             });
 
             if (verifyRes.ok) {
               toast({ title: "Payment Successful", description: `₹${amount} has been successfully paid.` });
-              fetchFeeStatus();
+              await fetchFeeStatus();
               setPayAmount("");
             } else {
+              const errData = await verifyRes.json();
+              console.error("Verification Failed:", errData);
               toast({ title: "Verification Failed", description: "Payment verification failed. Please contact admin.", variant: "destructive" });
             }
           } catch (err) {
+            console.error("Verification Error:", err);
             toast({ title: "Error", description: "Something went wrong during verification.", variant: "destructive" });
+          } finally {
+            setLoading(false);
           }
         },
         prefill: {
-          name: userName,
+          name: order.user_name || userName,
+          email: order.user_email || userEmail,
+          contact: "9980100285"
         },
         theme: {
           color: "#0F172A"
+        },
+        modal: {
+          ondismiss: function () {
+            console.log("Razorpay modal dismissed");
+            setLoading(false);
+          }
         }
       };
 
+      console.log("Initializing Razorpay with options:", options);
       const rzp = new (window as any).Razorpay(options);
+      
       rzp.on('payment.failed', function (response: any) {
-        toast({ title: "Payment Failed", description: response.error.description, variant: "destructive" });
+        console.error("Razorpay Payment Failed:", response.error);
+        toast({
+          title: "Payment Failed",
+          description: response.error.description || "Payment was not completed.",
+          variant: "destructive"
+        });
+        setLoading(false);
       });
+
       rzp.open();
+      // DO NOT set loading false here because the modal is now open 
+      // and we want to prevent multiple clicks. 
+      // It will be reset in handler, ondismiss, or payment.failed.
     } catch (err: any) {
-      toast({ title: "Order Failed", description: err.message, variant: "destructive" });
-    } finally {
+      console.error("Payment Flow Error:", err);
+      toast({ title: "System Error", description: err.message, variant: "destructive" });
       setLoading(false);
     }
   };
@@ -171,7 +203,7 @@ const FeePayment = () => {
           </Card>
 
           <Card className="bg-white border-slate-100 shadow-xl rounded-3xl overflow-hidden relative group">
-             <CardHeader>
+            <CardHeader>
               <CardDescription className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Pending Balance</CardDescription>
               <CardTitle className={`text-4xl font-black ${balance > 0 ? 'text-amber-500' : 'text-slate-300'}`}>₹{balance.toLocaleString()}</CardTitle>
             </CardHeader>
@@ -208,7 +240,7 @@ const FeePayment = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-3">
                 {[1000, 5000, 10000].map(amt => (
                   <button
@@ -258,11 +290,11 @@ const FeePayment = () => {
                     <div key={i} className="p-6 hover:bg-slate-50/50 transition-colors flex justify-between items-center group">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                           <p className="font-black text-slate-800">₹{payment.amount.toLocaleString()}</p>
-                           <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Success</span>
+                          <p className="font-black text-slate-800">₹{(payment.amount || 0).toLocaleString()}</p>
+                          <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Success</span>
                         </div>
                         <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tight">{payment.orderId || payment.id}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{new Date(payment.date).toLocaleDateString()} • {new Date(payment.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">{new Date(payment.date).toLocaleDateString()} • {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                       <div className="p-2.5 bg-slate-50 rounded-xl group-hover:bg-primary/10 group-hover:text-primary transition-all">
                         <CheckCircle2 className="w-4 h-4" />

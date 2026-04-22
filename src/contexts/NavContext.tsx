@@ -14,6 +14,14 @@ export const NavProvider = ({ children }: { children: ReactNode }) => {
     setActiveId(id);
   }, []);
 
+  React.useEffect(() => {
+    const handleNavEvent = (e: any) => {
+      if (e.detail) handleNav(e.detail);
+    };
+    window.addEventListener('nav-change', handleNavEvent);
+    return () => window.removeEventListener('nav-change', handleNavEvent);
+  }, [handleNav]);
+
   return (
     <NavContext.Provider value={{ activeId, handleNav }}>
       {children}
